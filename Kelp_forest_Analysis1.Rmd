@@ -1,0 +1,396 @@
+---
+title: "Kelp_forest_Analysis"
+output: html_document
+date: "2025-03-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+load data from all year
+```{r}
+rm(list = ls())
+year_kelp_temp_all_sites <- read_excel("C:/Users/marin_06d4zki/OneDrive - Universität Zürich UZH/EEE311 Remotely Sensing the Basis of Biodiversity/Kelp_Forest_Project/Kelp_forest_data/year_kelp_temp_all_sites.xlsx")
+
+year_kelp_temp_all_sites$loc = factor(year_kelp_temp_all_sites$loc)
+year_kelp_temp_all_sites$pat = factor(year_kelp_temp_all_sites$pat)
+
+quarter_kelp_temp_all_sites <- read_excel("C:/Users/marin_06d4zki/OneDrive - Universität Zürich UZH/EEE311 Remotely Sensing the Basis of Biodiversity/Kelp_Forest_Project/Kelp_forest_data/quarter_kelp_temp_all_sites.xlsx")
+
+```
+
+
+filter for the locations that have temperature data
+```{r}
+loc_relevant = c("loc1-al1", "loc1-al2", "loc1-al3", "loc1-al4", "loc1-al5", "loc2-wa4", "loc2-wa5", "loc4-ca1", "loc4-ca4")
+relevant_loc = year_kelp_temp_all_sites %>%
+  filter(site %in% loc_relevant)
+
+```
+
+kelp_area agains mean_temp, as well as location and patch, with all sites (also the ones with missing temperature)
+```{r}
+lm_1  = lm(terms(kelp_area ~ mean_temp + (loc + pat) + 
+                   mean_temp : (loc + pat)), 
+                  data =  year_kelp_temp_all_sites[year_kelp_temp_all_sites$mean_temp >0,])
+
+anova(lm_1)
+
+```
+analysis without location 
+```{r}
+lm_2  = lm(terms(kelp_area ~ mean_temp +  pat + 
+                   mean_temp : pat), 
+                  data =  year_kelp_temp_all_sites[year_kelp_temp_all_sites$mean_temp >0,], na.action="na.exclude")
+
+anova(lm_2)
+
+pred_2 = fitted(lm_2)
+
+plot(x = year_kelp_temp_all_sites$mean_temp, y = pred_2, pch = as.numeric(year_kelp_temp_all_sites$pat))
+
+plot(x = year_kelp_temp_all_sites$mean_temp, y = year_kelp_temp_all_sites$kelp_area, pch = as.numeric(year_kelp_temp_all_sites$pat))
+
+par(mfrow=c(2,2))
+plot(lm_2)
+```
+
+only analysis the sites with mean temperature data
+```{r}
+lm_3  = lm(terms(kelp_area ~ mean_temp +  pat + 
+                   mean_temp : pat), 
+                  data =  relevant_loc, na.action="na.exclude")
+
+
+anova(lm_3)
+
+pred_3 = fitted(lm_3)
+
+plot(x = relevant_loc$mean_temp, y = pred_3, pch = as.numeric(relevant_loc$pat))
+
+plot(x = relevant_loc$mean_temp, y = relevant_loc$kelp_area, pch = as.numeric(relevant_loc$pat))
+
+par(mfrow=c(2,2))
+plot(lm_3)
+```
+
+
+transform kelp area, the proportional coverage with arcsin transformation
+```{r}
+hist(relevant_loc$kelp_area/2000000, n= 100)
+relevant_loc$ang_kelp = asin(sqrt(relevant_loc$kelp_area/2000000))
+
+
+relevant_loc$log_kelp = log(relevant_loc$kelp_area)
+
+lm_4  = lm(terms(ang_kelp ~ mean_temp +  pat + 
+                   mean_temp : pat), 
+                  data =  relevant_loc, na.action="na.exclude")
+
+summary(lm_4)
+anova(lm_4)
+
+pred_4 = fitted(lm_4)
+
+plot(x = relevant_loc$mean_temp, y = pred_4, pch = as.numeric(relevant_loc$pat))
+
+plot(x = relevant_loc$mean_temp, y = relevant_loc$ang_kelp, pch = as.numeric(relevant_loc$pat))
+
+par(mfrow=c(2,2))
+plot(lm_4)
+```
+
+plot for lm_4
+```{r}
+ggplot(relevant_loc, aes(x = mean_temp, color = pat), group = pat) +
+  geom_point(aes(y = ang_kelp)) +
+  labs(y = "Proportion Kelp area (arcsin transformation)") +
+  geom_line(aes(y = pred_4, group = pat))  # Add the prediction line layer
+```
+
+
+
+with ang_kelp, pat before mean temp
+```{r}
+lm_5  = lm(terms(ang_kelp ~ pat +  mean_temp  + 
+                   pat : mean_temp), 
+                  data =  relevant_loc, na.action="na.exclude")
+
+summary(lm_5)
+anova(lm_5)
+
+pred_5 = fitted(lm_5)
+
+plot(x = relevant_loc$mean_temp, y = pred_5, pch = as.numeric(relevant_loc$pat))
+
+plot(x = relevant_loc$mean_temp, y = relevant_loc$ang_kelp, pch = as.numeric(relevant_loc$pat))
+
+par(mfrow=c(2,2))
+plot(lm_5)
+```
+
+plot for lm_5
+```{r}
+ggplot(relevant_loc, aes(x = mean_temp, color = pat), group = pat) +
+  geom_point(aes(y = ang_kelp)) +
+  labs(y = "Proportion Kelp area (arcsin transformation)") +
+  geom_line(aes(y = pred_5, group = pat))  # Add the prediction line layer
+
+```
+
+
+
+without the interaction term, to get slope of mean_temp
+```{r}
+lm_6  = lm(terms(ang_kelp ~ pat +  mean_temp  ), 
+                  data =  relevant_loc, na.action="na.exclude")
+
+pred_6 = fitted(lm_6)
+summary(lm_6)
+```
+
+
+sea otter population agains mean_temp and patch
+```{r}
+lm_7  = lm(terms(sqrt(total_pop_otters) ~ mean_temp +  pat + 
+                   mean_temp : pat), 
+                  data =  relevant_loc, na.action="na.exclude")
+
+summary(lm_7)
+anova(lm_7)
+
+pred_7 = fitted(lm_7)
+
+plot(x = relevant_loc$mean_temp, y = pred_7, pch = as.numeric(relevant_loc$pat))
+
+plot(x = relevant_loc$mean_temp, y = relevant_loc$kelp_area, pch = as.numeric(relevant_loc$pat))
+
+par(mfrow=c(2,2))
+plot(lm_7)
+```
+
+
+
+
+sea otter population against ang_kelp, mean_temp and patch
+```{r}
+lm_8  = lm(terms(sqrt(total_pop_otters) ~ ang_kelp + mean_temp +
+                   pat + ang_kelp : pat + mean_temp : pat),
+           data =  relevant_loc, na.action="na.exclude")
+
+anova(lm_8)
+
+pred_8 = fitted(lm_8)
+
+plot(x = relevant_loc$mean_temp, y = pred_8, pch = as.numeric(relevant_loc$pat))
+
+plot(x = relevant_loc$mean_temp, y = relevant_loc$kelp_area, pch = as.numeric(relevant_loc$pat))
+
+#make 1 plot out of this two graphs with the first one as lines, color for the different sites, legend
+
+par(mfrow=c(2,2))
+plot(lm_8)
+
+```
+
+
+ang_kelp against sea otter population, patch and mean_temp
+```{r}
+lm_9  = lm(terms(ang_kelp ~ sqrt(total_pop_otters) +  pat +  mean_temp  + 
+                   pat : mean_temp), 
+                  data =  relevant_loc, na.action="na.exclude")
+anova(lm_9)
+```
+
+temperature trends over the years, graph
+```{r}
+ggplot(relevant_loc, aes(x=year, y= mean_temp, color = pat))+
+  geom_point() +
+  geom_smooth(method = lm)
+
+```
+
+plot sea otter populaiton against kelp area
+```{r}
+ggplot(relevant_loc, aes(x = ang_kelp, y = sqrt(total_pop_otters), color = mean_temp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) + # Add linear regression line
+  labs(x = "Angular Kelp",
+       y = "sqrt of Total Otter Population")
+```
+
+kelp cover over time for the alaska, at all locations
+```{r}
+sites_to_plot <- c("loc1-al1", "loc1-al2", "loc1-al3", "loc1-al4", "loc1-al5")
+
+filtered_data <- year_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+filtered_data$ang_kelp =  asin(sqrt(filtered_data$kelp_area/2000000))
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year, y = ang_kelp, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  labs(y = "Proportion Kelp area (arcsin transformation)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+```
+
+kelp cover over time for the washington, at all locations
+```{r}
+sites_to_plot <- c("loc2-wa1", "loc2-wa2", "loc2-wa3", "loc2-wa4", "loc2-wa5")
+
+filtered_data <- year_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+filtered_data$ang_kelp =  asin(sqrt(filtered_data$kelp_area/2000000))
+
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year, y = ang_kelp, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  labs(y = "Proportion Kelp area (arcsin transformation)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+kelp cover over time for the oregon, at all locations
+```{r}
+sites_to_plot <- c("loc3-or1", "loc3-or2", "loc3-or3", "loc3-or4", "loc3-or5")
+
+filtered_data <- year_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+filtered_data$ang_kelp =  asin(sqrt(filtered_data$kelp_area/2000000))
+
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year, y = ang_kelp, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  labs(y = "Proportion Kelp area (arcsin transformation)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+kelp cover over time for the california, at all locations
+```{r}
+sites_to_plot <- c("loc4-ca1", "loc4-ca2", "loc4-ca3", "loc4-ca4", "loc4-ca5")
+
+filtered_data <- year_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+filtered_data$ang_kelp =  asin(sqrt(filtered_data$kelp_area/2000000))
+
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year, y = ang_kelp, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  labs(y = "Proportion Kelp area (arcsin transformation)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+plots of kelp area per location with quarter year data
+```{r}
+quarter_kelp_temp_all_sites$year_quarter <- paste(quarter_kelp_temp_all_sites$year, quarter_kelp_temp_all_sites$quarter, sep = "-Q")
+
+# Assuming the sites you want to plot are "SiteA" and "SiteB"
+sites_to_plot <- c("loc1-al1", "loc1-al2", "loc1-al3", "loc1-al4", "loc1-al5")
+
+filtered_data <- quarter_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+
+# Create a new column 'year_quarter_unique' that identifies the first quarter of each year
+filtered_data <- filtered_data %>%
+  group_by(year) %>%
+  mutate(year_quarter_unique = ifelse(quarter == 1, as.character(year_quarter), NA))
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year_quarter, y = kelp_area, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  scale_x_discrete(breaks = unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]),
+                   labels = substr(unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]), 1, 4)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+```{r}
+quarter_kelp_temp_all_sites$year_quarter <- paste(quarter_kelp_temp_all_sites$year, quarter_kelp_temp_all_sites$quarter, sep = "-Q")
+
+# Assuming the sites you want to plot are "SiteA" and "SiteB"
+sites_to_plot <- c("loc2-wa1", "loc2-wa2", "loc2-wa3", "loc2-wa4", "loc2-wa5")
+
+filtered_data <- quarter_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+
+# Create a new column 'year_quarter_unique' that identifies the first quarter of each year
+filtered_data <- filtered_data %>%
+  group_by(year) %>%
+  mutate(year_quarter_unique = ifelse(quarter == 1, as.character(year_quarter), NA))
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year_quarter, y = kelp_area, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  scale_x_discrete(breaks = unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]),
+                   labels = substr(unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]), 1, 4)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+```{r}
+quarter_kelp_temp_all_sites$year_quarter <- paste(quarter_kelp_temp_all_sites$year, quarter_kelp_temp_all_sites$quarter, sep = "-Q")
+
+# Assuming the sites you want to plot are "SiteA" and "SiteB"
+sites_to_plot <- c("loc3-or1", "loc3-or2", "loc3-or3", "loc3-or4", "loc3-or5")
+
+filtered_data <- quarter_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+
+# Create a new column 'year_quarter_unique' that identifies the first quarter of each year
+filtered_data <- filtered_data %>%
+  group_by(year) %>%
+  mutate(year_quarter_unique = ifelse(quarter == 1, as.character(year_quarter), NA))
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year_quarter, y = kelp_area, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  scale_x_discrete(breaks = unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]),
+                   labels = substr(unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]), 1, 4)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+quarter_kelp_temp_all_sites$year_quarter <- paste(quarter_kelp_temp_all_sites$year, quarter_kelp_temp_all_sites$quarter, sep = "-Q")
+
+# sites to plot together
+sites_to_plot <- c("loc4-ca1", "loc4-ca2", "loc4-ca3", "loc4-ca4", "loc4-ca5")
+
+filtered_data <- quarter_kelp_temp_all_sites %>%
+  filter(site %in% sites_to_plot)
+
+# Create a new column 'year_quarter_unique' that identifies the first quarter of each year
+filtered_data <- filtered_data %>%
+  group_by(year) %>%
+  mutate(year_quarter_unique = ifelse(quarter == 1, as.character(year_quarter), NA))
+
+# Use 'year_quarter_unique' for the x-axis breaks and labels
+ggplot(filtered_data, aes(x = year_quarter, y = kelp_area, group = site, colour = site)) +
+  geom_line() +
+  geom_smooth(method = lm) +
+  scale_x_discrete(breaks = unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]),
+                   labels = substr(unique(filtered_data$year_quarter_unique[!is.na(filtered_data$year_quarter_unique)]), 1, 4)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+
